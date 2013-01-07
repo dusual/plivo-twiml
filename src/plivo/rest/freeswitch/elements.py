@@ -122,7 +122,7 @@ ELEMENTS_DEFAULT_PARAMS = {
                 #url: SET IN ELEMENT BODY
                 'method': 'POST'
         },
-        'Speak': {
+        'Say': {
                 'voice': 'slt',
                 'language': 'en',
                 'loop': 1,
@@ -510,13 +510,13 @@ class Conference(Element):
                 outbound_socket.log.debug("Entered Conference: Room %s with Member-ID %s" \
                                 % (self.room, self.member_id))
                 has_floor = event['Floor'] == 'true'
-                can_speak = event['Speak'] == 'true'
+                can_say = event['Say'] == 'true'
                 is_first = event['Conference-Size'] == '1'
                 # notify channel has entered room
                 self._notify_enter_conf(outbound_socket)
                 # notify floor holder only if :
                 # floor is true and member is not muted and member is the first one
-                if has_floor and can_speak and is_first:
+                if has_floor and can_say and is_first:
                     self._notify_floor_holder(outbound_socket)
 
                 # set bind digit actions
@@ -691,8 +691,8 @@ class Dial(Element):
                         if loop == MAX_LOOPS:
                             break
                 # Speak element
-                elif element.tag == 'Speak':
-                    child_instance = Speak()
+                elif element.tag == 'Say':
+                    child_instance = Say()
                     child_instance.parse_element(element)
                     text = child_instance.text
                     # escape simple quote
@@ -991,7 +991,7 @@ class GetDigits(Element):
 
     def __init__(self):
         Element.__init__(self)
-        self.nestables = ('Speak', 'Play', 'Wait')
+        self.nestables = ('Say', 'Play', 'Wait')
         self.num_digits = None
         self.timeout = None
         self.finish_on_key = None
@@ -1074,7 +1074,7 @@ class GetDigits(Element):
                 pause_str = 'file_string://silence_stream://%s'\
                                 % (pause_secs * 1000)
                 self.sound_files.append(pause_str)
-            elif isinstance(child_instance, Speak):
+            elif isinstance(child_instance, Say):
                 text = child_instance.text
                 # escape simple quote
                 text = text.replace("'", "\\'")
@@ -1610,7 +1610,7 @@ class Notify(Element):
                                         % (self.method, self.url, params, e))
         return None
 
-class Speak(Element):
+class Say(Element):
     """Speak text
 
     text: text to say
@@ -1655,7 +1655,7 @@ class Speak(Element):
         except ValueError:
             loop = 1
         if loop < 0:
-            raise RESTFormatException("Speak 'loop' must be a positive integer or 0")
+            raise RESTFormatException("Speak\Say(twilio) 'loop' must be a positive integer or 0")
         if loop == 0 or loop > MAX_LOOPS:
             self.loop_times = MAX_LOOPS
         else:
@@ -1683,18 +1683,18 @@ class Speak(Element):
             res = outbound_socket.speak(say_args, loops=self.loop_times)
         if res.is_success():
             for i in range(self.loop_times):
-                outbound_socket.log.debug("Speaking %d times ..." % (i+1))
+                outbound_socket.log.debug("Speaking/Saying(twilio) %d times ..." % (i+1))
                 event = outbound_socket.wait_for_action()
                 if event.is_empty():
-                    outbound_socket.log.warn("Speak Break (empty event)")
+                    outbound_socket.log.warn("Speak/Say(twilio) Break (empty event)")
                     return
-                outbound_socket.log.debug("Speak %d times done (%s)" \
+                outbound_socket.log.debug("Speak/Say(twilio) %d times done (%s)" \
                             % ((i+1), str(event['Application-Response'])))
                 gevent.sleep(0.01)
-            outbound_socket.log.info("Speak Finished")
+            outbound_socket.log.info("Speak/Say(twilio) Finished")
             return
         else:
-            outbound_socket.log.error("Speak Failed - %s" \
+            outbound_socket.log.error("Speak/Say(twilio) Failed - %s" \
                             % str(res.get_response()))
             return
 

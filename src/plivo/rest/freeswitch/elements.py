@@ -1662,7 +1662,12 @@ class Say(Element):
             self.loop_times = loop
         self.engine = self.extract_attribute_value("engine")
         self.language = self.extract_attribute_value("language")
-        self.voice = self.extract_attribute_value("voice")
+        ### Changing the voice engine for man
+        if self.extract_attribute_value("voice").lower() == "man": 
+            self.voice = 'kal'
+        else:
+            self.voice = self.extract_attribute_value("voice")
+        
         item_type = self.extract_attribute_value("type")
         if item_type in self.valid_types:
             self.item_type = item_type

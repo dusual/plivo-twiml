@@ -18,7 +18,7 @@ from gevent import spawn_raw
 from plivo.rest.freeswitch.helpers import is_valid_url, is_sip_url, \
                                         file_exists, normalize_url_space, \
                                         get_resource, get_grammar_resource, \
-                                        HTTPRequest
+                                        HTTPRequest, url_is_absolute 
 
 from plivo.rest.freeswitch.exceptions import RESTFormatException, \
                                             RESTAttributeException, \
@@ -26,6 +26,9 @@ from plivo.rest.freeswitch.exceptions import RESTFormatException, \
                                             RESTSIPTransferException, \
                                             RESTNoExecuteException, \
                                             RESTHangup
+
+
+from urlparse import urlparse,urljoin
 
 
 ELEMENTS_DEFAULT_PARAMS = {
@@ -99,7 +102,7 @@ ELEMENTS_DEFAULT_PARAMS = {
         'PreAnswer': {
         },
         'Record': {
-                #action: DYNAMIC! MUST BE SET IN METHOD,
+                'action': '', #target url by default or a relative or absolute url
                 'method': 'POST',
                 'timeout': 15,
                 'finishOnKey': '1234567890*#',
@@ -1467,10 +1470,20 @@ class Record(Element):
             event = outbound_socket.wait_for_action()
             outbound_socket.stop_dtmf()
             outbound_socket.log.info("Record Completed")
+        
+        ## plivo-twiml change: target-url in case of default 
+        if not self.action:
+            self.action = outbound_socket.target_url
+            
+        ## plivo-twiml change: add base url in case of relative url
+        if not url_is_absolute(self.action):
+            self.action = urljoin(outbound_socket.target_url, self.action)
+
+            
 
         # If action is set, redirect to this url
         # Otherwise, continue to next Element
-        if self.action and is_valid_url(self.action):
+        if is_valid_url(self.action):
             params = {}
             params['RecordingFileFormat'] = self.file_format
             params['RecordingFilePath'] = self.file_path

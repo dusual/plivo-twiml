@@ -407,3 +407,5 @@ def get_grammar_resource(socket, grammar):
     return False
 
 
+def url_is_absolute(url):
+    return bool(urlparse.urlparse(url).scheme)

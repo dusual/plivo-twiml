@@ -69,12 +69,12 @@ ELEMENTS_DEFAULT_PARAMS = {
                 'callbackMethod': 'POST',
                 'digitsMatch': ''
         },
-        'GetDigits': {
-                #action: DYNAMIC! MUST BE SET IN METHOD,
+        'Gather': {
+                'action':'' ,
                 'method': 'POST',
                 'timeout': 5,
                 'finishOnKey': '#',
-                'numDigits': 99,
+                'numDigits': 128, #Going with freeswitch max as "unlimited"(twilio)
                 'retries': 1,
                 'playBeep': 'false',
                 'validDigits': '0123456789*#',
@@ -976,7 +976,7 @@ class Dial(Element):
                     spawn_raw(outbound_socket.send_to_url, self.action, params, method=self.method)
 
 
-class GetDigits(Element):
+class Gather(Element):
     """Get digits from the caller's keypad
 
     action: URL to which the digits entered will be sent
@@ -989,12 +989,12 @@ class GetDigits(Element):
     validDigits: digits which are allowed to be pressed
     invalidDigitsSound: Sound played when invalid digit pressed
     """
-    DEFAULT_MAX_DIGITS = 99
+    DEFAULT_MAX_DIGITS = 128
     DEFAULT_TIMEOUT = 5
 
     def __init__(self):
         Element.__init__(self)
-        self.nestables = ('Say', 'Play', 'Wait')
+        self.nestables = ('Say', 'Play', 'Wait','Redirect')
         self.num_digits = None
         self.timeout = None
         self.finish_on_key = None
@@ -1043,10 +1043,13 @@ class GetDigits(Element):
         self.method = method
 
         action = self.extract_attribute_value("action")
-        if action and is_valid_url(action):
+      
+        
+        if action:
             self.action = action
         else:
             self.action = None
+        
         self.num_digits = num_digits
         self.timeout = timeout * 1000
         self.finish_on_key = finish_on_key
@@ -1099,12 +1102,24 @@ class GetDigits(Element):
                 for i in range(loop):
                     self.sound_files.append(say_str)
 
+        ## plivo-twiml change: target-url in case of default 
+        if not self.action:
+            self.action = outbound_socket.target_url
+            
+        ## plivo-twiml change: add base url in case of relative url
+        if not url_is_absolute(self.action):
+            self.action = urljoin(outbound_socket.target_url, self.action)
+
+        
+            
+
+
         if self.invalid_digits_sound:
             invalid_sound = get_resource(outbound_socket, self.invalid_digits_sound)
         else:
             invalid_sound = ''
 
-        outbound_socket.log.info("GetDigits Started %s" % self.sound_files)
+        outbound_socket.log.info("GetDigits/Gather(twilio) Started %s" % self.sound_files)
         if self.play_beep:
             outbound_socket.log.debug("GetDigits play Beep enabled")
         outbound_socket.play_and_get_digits(max_digits=self.num_digits,
@@ -1118,14 +1133,15 @@ class GetDigits(Element):
         digits = outbound_socket.get_var('pagd_input')
         # digits received
         if digits is not None:
-            outbound_socket.log.info("GetDigits, Digits '%s' Received" % str(digits))
+            outbound_socket.log.info("GetDigits/Gather(twilio), Digits '%s' Received" % str(digits))
+            
             if self.action:
                 # Redirect
                 params = {'Digits': digits}
                 self.fetch_rest_xml(self.action, params, self.method)
             return
         # no digits received
-        outbound_socket.log.info("GetDigits, No Digits Received")
+        outbound_socket.log.info("GetDigits/Gather(twilio), No Digits Received")
 
 
 class Hangup(Element):
